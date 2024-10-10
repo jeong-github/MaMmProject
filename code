@@ -1,0 +1,647 @@
+import time
+import requests
+import os
+import glob
+import random
+
+# chrome 드라이버 모듈
+from selenium import webdriver
+from selenium.webdriver import ChromeOptions
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+# from selenium.webdriver import ChromeOptions, Keys
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
+from urllib import request
+import sys
+
+# edge 드라이버 모듈
+from selenium.webdriver.edge.service import Service
+from selenium.webdriver.edge.options import Options as EdgeOptions
+from urllib.request import urlretrieve
+
+# 마우스커서 모듈
+from selenium.webdriver import ActionChains
+import autoit
+
+# 관련 태그 설정
+related_tag = []
+exit = 'exit'
+print('관련된 태그를 입력하세요: ')
+for i in range(0,11):
+    input_related_tag = input()
+    if input_related_tag == exit:
+        break
+    else:
+        related_tag.append(input_related_tag)
+
+print(related_tag)
+
+# input 명령어 설정
+keyword_draw = input('그리고싶은 아이콘을 입력하세요 : ')
+keyword_tag = input('대표적인 태그를 입력하세요 : ')
+
+
+'''
+# 연관 검색어 뽑는 예제
+import requests
+import bs4
+
+kwd = input("키워드를 입력하세요 :")
+
+url = "https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=" + kwd
+
+http = requests.get(url)
+
+html = bs4.BeautifulSoup(http.text, 'html.parser')
+
+result = html.find_all("div", {"class":"tit"})
+
+for i in result:
+    print(i.text)
+'''
+
+
+#######################################
+# 1. 이미지 다운로드
+#######################################
+# edgedriver==============================================
+m_service = Service(executable_path = r'E:\money\msedgedriver.exe')
+m_options = EdgeOptions()
+m_options.add_experimental_option("detach", True)
+m_driver = webdriver.Edge(service = m_service, options= m_options)
+
+# imagecreator 접속
+m_driver.get("https://www.bing.com/images/create?FORM=SYDBIC")
+draw = m_driver.find_element(By.XPATH, '//*[@id="sb_form_q"]')
+draw.send_keys(keyword_draw)
+draw.send_keys("\n")
+m_driver.implicitly_wait(30)
+
+# img src 찾아서 list에 저장
+find_img = m_driver.find_elements(By.CLASS_NAME, 'mimg')
+time.sleep(2)
+src_list = []
+# 중복 src가 있을시 추가하지 않음
+for img in find_img:
+    if img.get_attribute('src') not in src_list:
+        src_list.append(img.get_attribute('src'))
+
+time.sleep(5)
+print(src_list)
+time.sleep(2)
+
+# 폴더-없을 시 생성
+path_folder = 'E:/down/'
+if not os.path.isdir(path_folder):
+    os.mkdir(path_folder)
+
+m_driver.implicitly_wait(5)
+
+# 이미지 다운로드
+i = 0
+
+for link in src_list:
+    i += 1
+    urlretrieve(link, path_folder + keyword_tag + f'{i}.jpg')
+
+m_driver.implicitly_wait(10)
+m_driver.quit()
+
+
+#######################################
+# 2. jpg png ----> svg 변환
+#######################################
+# chromedriver================================================
+# 브라우저 꺼짐 방지 옵션
+options = ChromeOptions()
+options.add_experimental_option("detach", True)
+# 파일 다운로드 경로 변경
+options.add_experimental_option('prefs', {'download.default_directory':r'E:\upload'})
+# os에 설치된 크롬 브라우저 사용하도록 실행
+driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+# 마우스 커서 옵션
+act = ActionChains(driver)
+# 대기 옵션
+wait = WebDriverWait(driver, 10)
+
+# 1) 사이트 이동 로그인 처리(약간의 수동)
+driver.get('https://express.adobe.com/ko-KR/tools/convert-to-svg')
+time.sleep(5)
+
+#로그인 처리
+login_btn = driver.find_element(By.XPATH, '//*[@id="gnt_541"]/a')
+act.move_to_element(login_btn).click().perform()
+time.sleep(5)
+
+id_box2 = driver.find_element(By.XPATH, '//*[@id="EmailPage-EmailField"]')
+id_box2.send_keys('jch951753@gmail.com')
+driver.implicitly_wait(3)
+
+# 로그인해서 인증코드 보내는 절차
+time.sleep(50)
+
+# 2) convert 크롤링
+# 2-1) 첫 번 째 이미지 업로드-다운로드
+# shadow host 요소 찾기
+shadow_host = driver.find_element(By.CSS_SELECTOR, 'cclqt-convert-to-svg')
+#print(shadow_host.get_attribute('qt-id'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root = driver.execute_script('return arguments[0].shadowRoot;', shadow_host)
+
+# shadow root 내부에서 요소를 찾기 위해 JavaScript 코드 실행
+sp_theme = shadow_root.find_element(By.CSS_SELECTOR, 'sp-theme')
+#print(sp_theme.get_attribute('color'))
+
+workspace = sp_theme.find_element(By.CSS_SELECTOR, 'cclqt-workspace')
+#print(workspace.get_attribute('variant'))
+
+c_image_upload = workspace.find_element(By.CSS_SELECTOR, 'cclqt-image-upload')
+#print(c_image_upload.get_attribute('browser-type'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root1 = driver.execute_script('return arguments[0].shadowRoot;', c_image_upload)
+
+div = shadow_root1.find_element(By.CSS_SELECTOR, 'div')
+#print(div.get_attribute('class'))
+
+sp_button = div.find_element(By.CSS_SELECTOR, 'sp-button')
+#print(sp_button.get_attribute('class'))
+
+# 제출 버튼 클릭
+act.move_to_element(sp_button).click().perform()
+handle = "[CLASS:#32770; TITLE:열기]"
+autoit.win_wait_active("열기", 3)
+
+jpg_path = f'E:\down\{keyword_tag}1.jpg'
+time.sleep(2)
+
+autoit.control_send(handle, "Edit1", jpg_path)
+driver.implicitly_wait(2)
+
+autoit.control_click(handle, "Button1")
+time.sleep(5)
+
+# shadow host 요소 찾기
+shadow_host = driver.find_element(By.CSS_SELECTOR, 'cclqt-convert-to-svg')
+#print(shadow_host.get_attribute('qt-id'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root = driver.execute_script('return arguments[0].shadowRoot;', shadow_host)
+
+# shadow root 내부에서 요소를 찾기 위해 JavaScript 코드 실행
+sp_theme = shadow_root.find_element(By.CSS_SELECTOR, 'sp-theme')
+#print(sp_theme.get_attribute('color'))
+
+workspace = sp_theme.find_element(By.CSS_SELECTOR, 'cclqt-workspace')
+# print(workspace.get_attribute('variant'))
+
+c_image_export = workspace.find_element(By.CSS_SELECTOR, 'cclqt-image-export')
+#print(c_image_export.get_attribute('slot'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root2 = driver.execute_script('return arguments[0].shadowRoot;', c_image_export)
+
+div2 = shadow_root2.find_element(By.CSS_SELECTOR, 'div')
+#print(div.get_attribute('class'))
+
+sp_button2 = div2.find_element(By.CSS_SELECTOR, 'sp-button')
+#print(sp_button2.get_attribute('data-export-option-id'))
+
+act.move_to_element(sp_button2).click().perform()
+
+# 2-2) 두 번 째 이미지 업로드-다운로드
+# 새 탭 열기
+driver.execute_script("window.open('about:blank', 'new_tab')")
+# 새로 열린 탭으로 전환
+driver.switch_to.window(driver.window_handles[-1])
+driver.get('https://express.adobe.com/ko-KR/tools/convert-to-svg')
+time.sleep(3)
+
+# shadow host 요소 찾기
+shadow_host = driver.find_element(By.CSS_SELECTOR, 'cclqt-convert-to-svg')
+#print(shadow_host.get_attribute('qt-id'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root = driver.execute_script('return arguments[0].shadowRoot;', shadow_host)
+
+# shadow root 내부에서 요소를 찾기 위해 JavaScript 코드 실행
+sp_theme = shadow_root.find_element(By.CSS_SELECTOR, 'sp-theme')
+#print(sp_theme.get_attribute('color'))
+
+workspace = sp_theme.find_element(By.CSS_SELECTOR, 'cclqt-workspace')
+#print(workspace.get_attribute('variant'))
+
+c_image_upload = workspace.find_element(By.CSS_SELECTOR, 'cclqt-image-upload')
+#print(c_image_upload.get_attribute('browser-type'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root1 = driver.execute_script('return arguments[0].shadowRoot;', c_image_upload)
+
+div = shadow_root1.find_element(By.CSS_SELECTOR, 'div')
+#print(div.get_attribute('class'))
+
+sp_button = div.find_element(By.CSS_SELECTOR, 'sp-button')
+#print(sp_button.get_attribute('class'))
+
+# 업로드 버튼 클릭
+act.move_to_element(sp_button).click().perform()
+time.sleep(3)
+
+handle = "[CLASS:#32770; TITLE:열기]"
+autoit.win_wait_active("열기", 5)
+jpg_path = f'E:\down\{keyword_tag}2.jpg'
+time.sleep(2)
+autoit.control_send(handle, "Edit1", jpg_path)
+driver.implicitly_wait(2)
+autoit.control_click(handle, "Button1")
+time.sleep(5)
+
+# shadow host 요소 찾기
+shadow_host = driver.find_element(By.CSS_SELECTOR, 'cclqt-convert-to-svg')
+#print(shadow_host.get_attribute('qt-id'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root = driver.execute_script('return arguments[0].shadowRoot;', shadow_host)
+
+# shadow root 내부에서 요소를 찾기 위해 JavaScript 코드 실행
+sp_theme = shadow_root.find_element(By.CSS_SELECTOR, 'sp-theme')
+#print(sp_theme.get_attribute('color'))
+
+workspace = sp_theme.find_element(By.CSS_SELECTOR, 'cclqt-workspace')
+# print(workspace.get_attribute('variant'))
+
+c_image_export = workspace.find_element(By.CSS_SELECTOR, 'cclqt-image-export')
+#print(c_image_export.get_attribute('slot'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root2 = driver.execute_script('return arguments[0].shadowRoot;', c_image_export)
+
+div2 = shadow_root2.find_element(By.CSS_SELECTOR, 'div')
+#print(div.get_attribute('class'))
+
+sp_button2 = div2.find_element(By.CSS_SELECTOR, 'sp-button')
+#print(sp_button2.get_attribute('data-export-option-id'))
+
+act.move_to_element(sp_button2).click().perform()
+time.sleep(3)
+driver.close()
+#다시 이전 창(탭)으로 이동
+driver.switch_to.window(driver.window_handles[-1])
+time.sleep(3)
+
+# 2-3) 세 번 째 이미지 업로드-다운로드
+# 새 탭 열기
+driver.execute_script("window.open('about:blank', 'new_tab')")
+# 새로 열린 탭으로 전환
+driver.switch_to.window(driver.window_handles[-1])
+driver.get('https://express.adobe.com/ko-KR/tools/convert-to-svg')
+time.sleep(3)
+
+# shadow host 요소 찾기
+shadow_host = driver.find_element(By.CSS_SELECTOR, 'cclqt-convert-to-svg')
+#print(shadow_host.get_attribute('qt-id'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root = driver.execute_script('return arguments[0].shadowRoot;', shadow_host)
+
+# shadow root 내부에서 요소를 찾기 위해 JavaScript 코드 실행
+sp_theme = shadow_root.find_element(By.CSS_SELECTOR, 'sp-theme')
+#print(sp_theme.get_attribute('color'))
+
+workspace = sp_theme.find_element(By.CSS_SELECTOR, 'cclqt-workspace')
+#print(workspace.get_attribute('variant'))
+
+c_image_upload = workspace.find_element(By.CSS_SELECTOR, 'cclqt-image-upload')
+#print(c_image_upload.get_attribute('browser-type'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root1 = driver.execute_script('return arguments[0].shadowRoot;', c_image_upload)
+
+div = shadow_root1.find_element(By.CSS_SELECTOR, 'div')
+#print(div.get_attribute('class'))
+
+sp_button = div.find_element(By.CSS_SELECTOR, 'sp-button')
+#print(sp_button.get_attribute('class'))
+
+# 업로드 버튼 클릭
+act.move_to_element(sp_button).click().perform()
+
+handle = "[CLASS:#32770; TITLE:열기]"
+autoit.win_wait_active("열기", 3)
+jpg_path = f'E:\down\{keyword_tag}3.jpg'
+time.sleep(2)
+autoit.control_send(handle, "Edit1", jpg_path)
+driver.implicitly_wait(2)
+autoit.control_click(handle, "Button1")
+time.sleep(5)
+
+# shadow host 요소 찾기
+shadow_host = driver.find_element(By.CSS_SELECTOR, 'cclqt-convert-to-svg')
+#print(shadow_host.get_attribute('qt-id'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root = driver.execute_script('return arguments[0].shadowRoot;', shadow_host)
+
+# shadow root 내부에서 요소를 찾기 위해 JavaScript 코드 실행
+sp_theme = shadow_root.find_element(By.CSS_SELECTOR, 'sp-theme')
+#print(sp_theme.get_attribute('color'))
+
+workspace = sp_theme.find_element(By.CSS_SELECTOR, 'cclqt-workspace')
+# print(workspace.get_attribute('variant'))
+
+c_image_export = workspace.find_element(By.CSS_SELECTOR, 'cclqt-image-export')
+#print(c_image_export.get_attribute('slot'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root2 = driver.execute_script('return arguments[0].shadowRoot;', c_image_export)
+
+div2 = shadow_root2.find_element(By.CSS_SELECTOR, 'div')
+#print(div.get_attribute('class'))
+
+sp_button2 = div2.find_element(By.CSS_SELECTOR, 'sp-button')
+#print(sp_button2.get_attribute('data-export-option-id'))
+
+act.move_to_element(sp_button2).click().perform()
+time.sleep(3)
+
+driver.close()
+#다시 이전 창(탭)으로 이동
+driver.switch_to.window(driver.window_handles[-1])
+time.sleep(3)
+
+# 2-4) 네 번 째 이미지 업로드-다운로드
+# 새 탭 열기
+driver.execute_script("window.open('about:blank', 'new_tab')")
+# 새로 열린 탭으로 전환
+driver.switch_to.window(driver.window_handles[-1])
+driver.get('https://express.adobe.com/ko-KR/tools/convert-to-svg')
+time.sleep(3)
+
+# shadow host 요소 찾기
+shadow_host = driver.find_element(By.CSS_SELECTOR, 'cclqt-convert-to-svg')
+#print(shadow_host.get_attribute('qt-id'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root = driver.execute_script('return arguments[0].shadowRoot;', shadow_host)
+
+# shadow root 내부에서 요소를 찾기 위해 JavaScript 코드 실행
+sp_theme = shadow_root.find_element(By.CSS_SELECTOR, 'sp-theme')
+#print(sp_theme.get_attribute('color'))
+
+workspace = sp_theme.find_element(By.CSS_SELECTOR, 'cclqt-workspace')
+#print(workspace.get_attribute('variant'))
+
+c_image_upload = workspace.find_element(By.CSS_SELECTOR, 'cclqt-image-upload')
+#print(c_image_upload.get_attribute('browser-type'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root1 = driver.execute_script('return arguments[0].shadowRoot;', c_image_upload)
+
+div = shadow_root1.find_element(By.CSS_SELECTOR, 'div')
+#print(div.get_attribute('class'))
+
+sp_button = div.find_element(By.CSS_SELECTOR, 'sp-button')
+#print(sp_button.get_attribute('class'))
+
+# 업로드 버튼 클릭
+act.move_to_element(sp_button).click().perform()
+
+handle = "[CLASS:#32770; TITLE:열기]"
+autoit.win_wait_active("열기", 3)
+jpg_path = f'E:\down\{keyword_tag}4.jpg'
+time.sleep(2)
+autoit.control_send(handle, "Edit1", jpg_path)
+driver.implicitly_wait(2)
+autoit.control_click(handle, "Button1")
+time.sleep(5)
+
+# shadow host 요소 찾기
+shadow_host = driver.find_element(By.CSS_SELECTOR, 'cclqt-convert-to-svg')
+#print(shadow_host.get_attribute('qt-id'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root = driver.execute_script('return arguments[0].shadowRoot;', shadow_host)
+
+# shadow root 내부에서 요소를 찾기 위해 JavaScript 코드 실행
+sp_theme = shadow_root.find_element(By.CSS_SELECTOR, 'sp-theme')
+#print(sp_theme.get_attribute('color'))
+
+workspace = sp_theme.find_element(By.CSS_SELECTOR, 'cclqt-workspace')
+# print(workspace.get_attribute('variant'))
+
+c_image_export = workspace.find_element(By.CSS_SELECTOR, 'cclqt-image-export')
+#print(c_image_export.get_attribute('slot'))
+
+# JavaScript를 사용하여 shadow root를 가져오는 코드 실행
+shadow_root2 = driver.execute_script('return arguments[0].shadowRoot;', c_image_export)
+
+div2 = shadow_root2.find_element(By.CSS_SELECTOR, 'div')
+#print(div.get_attribute('class'))
+
+sp_button2 = div2.find_element(By.CSS_SELECTOR, 'sp-button')
+#print(sp_button2.get_attribute('data-export-option-id'))
+
+act.move_to_element(sp_button2).click().perform()
+time.sleep(3)
+
+driver.close()
+#다시 이전 창(탭)으로 이동
+driver.switch_to.window(driver.window_handles[-1])
+time.sleep(3)
+
+driver.quit()
+
+'''
+############## 로컬에서 이미지 convert
+
+# 전부 삭제
+def delete_jpg_files(folder_path):
+    # 폴더 내의 모든 파일 가져오기
+    file_list = glob.glob(os.path.join(folder_path, '*.jpg'))
+
+    if not file_list:
+        print("폴더 내에 .jpg 파일이 존재하지 않습니다.")
+        return
+
+    # 파일 삭제
+    for file_path in file_list:
+        try:
+            os.remove(file_path)
+            print(f"{file_path} 파일이 삭제되었습니다.")
+        except OSError as e:
+            print(f"파일 삭제 중 오류가 발생했습니다: {file_path} - {e}")
+
+
+# 폴더 경로 설정
+folder_path = 'E:/down/'
+
+# 함수 호출
+delete_jpg_files(folder_path)
+'''
+
+'''
+##################### convert 사이트1
+
+driver.get('https://www.svgcreator.com/')
+time.sleep(5)
+input_jpg = driver.find_element(By.CLASS_NAME, 'input')
+input_jpg.send_keys('E:/down/cat2.jpg')
+time.sleep(5)
+
+
+convert_btn = driver.find_element(By.CLASS_NAME, 'btn-submit')
+act.click(convert_btn).perform()
+#driver.execute_script("arguments[0].click();", convert_btn)
+time.sleep(10)
+
+
+download_btn = driver.find_element(By.XPATH, '//*[@id="root"]/div/div/div[2]/div[2]/div[2]/div[2]/button')
+driver.execute_script("arguments[0].click();", download_btn)
+time.sleep(10)
+#urlretrieve(link, path_folder + keyword_tag + f'{i}.jpg')
+'''
+
+
+'''
+download_btn = driver.find_element(By.CLASS_NAME, 'btn-download')#download_btn.click()
+driver.execute_script("arguments[0].click();", download_btn)
+time.sleep(5)
+'''
+
+'''
+#########################convert 사이트 2
+jpg_paths = [f'E:/down/{keyword_tag}1.jpg', f'E:/down/{keyword_tag}2.jpg', f'E:/down/{keyword_tag}3.jpg', f'E:/down/{keyword_tag}4.jpg']
+driver.get("https://convertio.co/kr/jpg-svg/")
+time.sleep(2)
+
+for jpg_path in jpg_paths:
+    #print(jpg_path)
+    # 파일 변환
+    driver.find_element(By.XPATH, '//*[@id="pc-upload-add"]').send_keys(jpg_path)
+    time.sleep(2)
+
+driver.find_element(By.XPATH, '//*[@id="pc-upload-add"]').send_keys(f'E:/down/{keyword_tag}2.jpg')
+convert_img = driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div/div[3]/div[2]/div/div[2]/div[2]/div/div[2]/div[2]/button')
+convert_img.click()
+#driver.implicitly_wait(15)
+time.sleep(20)
+covert_bt = driver.find_element(By.XPATH, '/html/body/div[1]/div/div/div/div[2]/div[2]/div/div[1]/table/tbody/tr/td[6]/a')
+covert_bt.click()
+time.sleep(10)
+driver.find_element(By.XPATH, '//*[@id="pc-upload-add"]').send_keys(f'E:/down/{keyword_tag}3.jpg')
+#driver.quit()
+'''
+
+#######################################
+# 3.더나은 프로젝트 주소 이동
+#######################################
+# chromedriver================================================
+# 브라우저 꺼짐 방지 옵션
+options = ChromeOptions()
+options.add_experimental_option("detach", True)
+# 파일 다운로드 경로 변경
+options.add_experimental_option('prefs', {'download.default_directory':r'E:\upload'})
+# os에 설치된 크롬 브라우저 사용하도록 실행
+driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+# 마우스 커서 옵션
+act = ActionChains(driver)
+# 대기 옵션
+wait = WebDriverWait(driver, 10)
+
+driver.get('https://thenounproject.com/')
+driver.implicitly_wait(5)
+
+# 1) 로그인 창으로 이동
+login_path = driver.find_element(By.XPATH, '//*[@id="site-header"]/div[2]/div/div[2]/div/div[2]/div/button[1]')
+driver.execute_script("arguments[0].click();", login_path)
+driver.implicitly_wait(10)
+# id, passwd 입력 ----------로그인 입력 실패시 다시 입력하게 while문 써주면 좋을듯
+#keyword_id = input('ID를 입력해주세요 : ')
+#keyword_passwd = input('PASSWD를 입력해주세요 : ')
+
+# 1-1) ID 입력
+driver.switch_to.window(driver.window_handles[0])
+id_box = driver.find_element(By.XPATH, '/html/body/div[3]/div[3]/div/div/div/div/div/label[1]/input')
+#id_box.send_keys(keyword_id)
+id_box.send_keys('jch951753@gmail.com')
+driver.implicitly_wait(3)
+# 1-2) PASSWD 입력
+passwd_box = driver.find_element(By.XPATH, '/html/body/div[3]/div[3]/div/div/div/div/div/label[2]/input')
+#passwd_box.send_keys(keyword_passwd)
+passwd_box.send_keys('Jch7418963@')
+driver.implicitly_wait(3)
+# 1-3) 로그인버튼 클릭
+login_bt = driver.find_element(By.XPATH, '/html/body/div[3]/div[3]/div/div/div/div/div/button[1]')
+login_bt.click()
+time.sleep(3)
+
+# 2) 아이콘 올리기
+# 2-1) 페이지 접속
+step1 = driver.find_element(By.XPATH, '//*[@id="site-header"]/div[1]/div/div[1]/div[1]/div/div/div[1]/nav/ul/li[5]/a')
+driver.execute_script("arguments[0].click();", step1)
+driver.implicitly_wait(3)
+step2 = driver.find_element(By.XPATH, '//*[@id="introduction"]/div[1]/a[2]')
+step2.click()
+driver.implicitly_wait(3)
+step3 = driver.find_element(By.XPATH, '//*[@id="upload-process"]/div/div[1]/div[3]/button')
+driver.execute_script("arguments[0].click();", step3)
+driver.implicitly_wait(3)
+step4 = driver.find_element(By.XPATH, '//*[@id="upload-process"]/div/div[2]/div[2]/a[1]')
+driver.execute_script("arguments[0].click();", step4)
+time.sleep(3)
+
+
+# 2-2) 파일 업로드(autoit, 이름지정, 태그지정, 제출)
+submit_click = driver.find_element(By.XPATH, '//*[@id="drop-zone"]')
+handle = "[CLASS:#32770; TITLE:열기]"
+act.click(submit_click).perform()
+# autoit.win_wait_active("열기", 10)
+autoit.win_wait_active("열기", 5)
+
+time.sleep(2)
+autoit.control_send(handle, "Edit1", fr'"E:\upload\{keyword_tag}1_adobe_express.svg" "E:\upload\{keyword_tag}2_adobe_express.svg" "E:\upload\{keyword_tag}3_adobe_express.svg" "E:\upload\{keyword_tag}4_adobe_express.svg"' )
+driver.implicitly_wait(2)
+
+autoit.control_click(handle, "Button1")
+driver.implicitly_wait(5)
+
+input_name = driver.find_element(By.XPATH, '//*[@id="icon-forms"]/li/form/div/div[1]/input')
+input_name.send_keys(keyword_tag)
+input_tags = driver.find_element(By.XPATH, '//*[@id="icon-forms"]/li/form/div/div[2]/div[2]/input')
+# 관련 태그 집어 넣기
+final_tag = random.sample(related_tag, 3)
+time.sleep(2)
+# print(final_tag)
+for submit_tag in final_tag:
+    input_tags.send_keys(submit_tag)
+    input_tags.send_keys("\n")
+
+input_tags.send_keys(keyword_tag)
+input_tags.send_keys("\n")
+time.sleep(3)
+
+
+for i in range(2,5):
+    input_name = driver.find_element(By.XPATH, f'//*[@id="icon-forms"]/li[{i}]/form/div/div[1]/input')
+    input_name.send_keys(keyword_tag)
+    input_tags = driver.find_element(By.XPATH, f'//*[@id="icon-forms"]/li[{i}]/form/div/div[2]/div[2]/input')
+    # 관련 태그 집어 넣기
+    final_tag = random.sample(related_tag, 3)
+    time.sleep(2)
+    for submit_tag in final_tag:
+        input_tags.send_keys(submit_tag)
+        input_tags.send_keys("\n")
+        input_tags.send_keys(keyword_tag)
+        input_tags.send_keys("\n")
+
+time.sleep(3)
+
+#driver.find_element(By.ID, "submit-icons")
+submit_bt = wait.until(EC.visibility_of_element_located((By.ID, "submit-icons")))
+driver.execute_script("arguments[0].click();", submit_bt)
+time.sleep(5)
